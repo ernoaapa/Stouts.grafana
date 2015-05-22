@@ -4,6 +4,20 @@
   template: src=grafana.ini.j2 dest=/etc/grafana/grafana.ini
   notify: grafana restart
 
+# Temporary fix for first start failing in slow micro AWS instance
+# Can be removed when release 2.0.2+ comes
+# https://github.com/grafana/grafana/commit/e0258617ee5f224e9e5454e83cc1231c4682b71d
+- stat: path={{grafana_data}}/grafana.db
+  register: db_file
+
+- name: Warmup database file
+  command: service grafana-server start
+  register: start_output
+  ignore_errors: yes
+  when: not db_file.stat.exists
+- pause: seconds=30
+  when: not db_file.stat.exists
+
 - name: grafana-configure | Ensure that Grafana-Server is started
   service: name=grafana-server state=started enabled=yes
 
